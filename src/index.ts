@@ -18,7 +18,7 @@ export default class ProgressLogger {
   /**
    * Message stream that will be logged to the console
    */
-  private readonly message$ = this.durations$!.pipe(
+  private readonly message$ = this.durations$?.pipe(
     throttleTime(100, undefined, { trailing: true }),
     map(durations => {
       const nonCachedDurations = this.filterOutliers(durations.filter(duration => duration !== 0));
@@ -57,7 +57,7 @@ export default class ProgressLogger {
 
   constructor(private readonly totalItems: number, private readonly message: string, private readonly averageMessage: string) {
     this.subscriptions.add(
-      this.message$.subscribe(message => {
+      this.message$?.subscribe(message => {
         logUpdate(message);
       })
     );
@@ -68,7 +68,7 @@ export default class ProgressLogger {
    * process that item (in milliseconds) should be passed as the argument.
    */
   public itemCompleted(duration: number): void {
-    this.durations$!.next([...this.durations$!.getValue(), duration]);
+    this.durations$?.next([...this.durations$?.getValue(), duration]);
   }
 
   /**
