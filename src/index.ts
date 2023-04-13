@@ -68,7 +68,9 @@ export default class ProgressLogger {
    * process that item (in milliseconds) should be passed as the argument.
    */
   public itemCompleted(duration: number): void {
-    this.durations$?.next([...this.durations$?.getValue(), duration]);
+    if (this.durations$) {
+      this.durations$.next([...this.durations$.getValue(), duration]);
+    }
   }
 
   /**
