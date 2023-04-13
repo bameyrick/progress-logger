@@ -56,7 +56,11 @@ export default class ProgressLogger {
   private readonly subscriptions = new Subscription();
 
   constructor(private readonly totalItems: number, private readonly message: string, private readonly averageMessage: string) {
-    this.subscriptions.add(this.message$.subscribe(message => logUpdate(message)));
+    this.subscriptions.add(
+      this.message$.subscribe(message => {
+        logUpdate(message);
+      })
+    );
   }
 
   /**
