@@ -9,6 +9,12 @@ A simple progress logger for Node.js that outputs progress and estimated time re
   - [Installation](#installation)
     - [npm](#npm)
     - [yarn](#yarn)
+  - [Usage](#usage)
+    - [Constructor Arguments](#constructor-arguments)
+    - [Methods](#methods)
+      - [increment](#increment)
+      - [destroy](#destroy)
+    - [Example](#example)
 
 ## Installation
 
@@ -24,4 +30,67 @@ npm install --save @qntm-code/progress-logger
 
 ```bash
 yarn add @qntm-code/progress-logger
+```
+
+## Usage
+
+### Constructor Arguments
+
+First you must create a new instance of the `ProgressLogger` class. The constructor takes the following arguments:
+
+| Argument       | Type   | Description                                              |
+| -------------- | ------ | -------------------------------------------------------- |
+| total          | number | The total number of items to process.                    |
+| message        | string | The message to display before the progress bar.          |
+| averageMessage | string | The message to display before the average time per item. |
+
+### Methods
+
+#### increment
+
+Call `increment` on the `ProgressLogger` instance to increment the progress bar by one item. This method takes the following arguments:
+
+| Argument | Type   | Description                                                                                      |
+| -------- | ------ | ------------------------------------------------------------------------------------------------ |
+| time     | number | The time taken to process the current item. This is used to calculate the average time per item. |
+
+#### destroy
+
+After you've finished processing your items, you must call `destroy` on the `ProgressLogger` instance to ensure the progress logger is destroyed and prevent a memory leak.
+
+### Example
+
+```typescript
+import { ProgressLogger } from '@qntm-code/progress-logger';
+
+async function someAsyncProcess(): Promise<void> {
+  // Do something
+}
+
+async function main(): Promise<void> {
+  const itemsToProcess = [
+    /* Some data */
+  ];
+  const total = itemsToProcess.length;
+
+  const logger = new ProgressLogger({
+    total,
+    message: 'Processing',
+    averageMessage: 'Average process time',
+  });
+
+  for (let i = 0; i < total; i++) {
+    const startTime = performance.now();
+
+    await someAsyncProcess();
+
+    logger.increment(performance.now() - startTime);
+  }
+
+  /**
+   * You must call destroy() after you've finshed processing your items to ensure the progress logger is
+   * destroyed and prevent a memory leak.
+   */
+  logger.destroy();
+}
 ```
