@@ -4,7 +4,6 @@ A simple progress logger for Node.js that outputs progress and estimated time re
 
 [![GitHub release](https://img.shields.io/github/release/bameyrick/progress-logger.svg)](https://github.com/bameyrick/progress-logger/releases)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=bameyrick_progress-logger&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=bameyrick_progress-logger)
-[![codecov](https://codecov.io/gh/bameyrick/progress-logger/branch/main/graph/badge.svg)](https://codecov.io/gh/bameyrick/progress-logger)
 
 - [@qntm-code/progress-logger](#qntm-codeprogress-logger)
   - [Installation](#installation)
