@@ -22,7 +22,7 @@ export default class ProgressLogger {
     throttleTime(100, undefined, { trailing: true }),
     map(durations => {
       const nonCachedDurations = this.filterOutliers(durations.filter(duration => duration !== 0));
-      const sample = nonCachedDurations.slice(-Math.min(1000, Math.max(nonCachedDurations.length - 1, 0)));
+      const sample = nonCachedDurations.slice(-Math.min(this.averageTimeSampleSize, Math.max(nonCachedDurations.length - 1, 0)));
       const averageDuration = sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
 
       if (!isNaNStrict(averageDuration)) {
@@ -55,7 +55,12 @@ export default class ProgressLogger {
    */
   private readonly subscriptions = new Subscription();
 
-  constructor(private readonly totalItems: number, private readonly message: string, private readonly averageMessage: string) {
+  constructor(
+    private readonly totalItems: number,
+    private readonly message: string,
+    private readonly averageMessage: string,
+    private readonly averageTimeSampleSize: number = 100
+  ) {
     this.subscriptions.add(
       this.message$?.subscribe(message => {
         logUpdate(message);

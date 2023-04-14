@@ -38,11 +38,12 @@ yarn add @qntm-code/progress-logger
 
 First you must create a new instance of the `ProgressLogger` class. The constructor takes the following arguments:
 
-| Argument       | Type   | Description                                              |
-| -------------- | ------ | -------------------------------------------------------- |
-| total          | number | The total number of items to process.                    |
-| message        | string | The message to display before the progress bar.          |
-| averageMessage | string | The message to display before the average time per item. |
+| Argument              | Type              | Description                                                                             |
+| --------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| total                 | number            | The total number of items to process.                                                   |
+| message               | string            | The message to display before the progress bar.                                         |
+| averageMessage        | string            | The message to display before the average time per item.                                |
+| averageTimeSampleSize | _Optional_ number | The number of items to use when calculating the average time per item. Defaults to 100. |
 
 ### Methods
 
