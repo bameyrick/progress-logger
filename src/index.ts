@@ -122,7 +122,7 @@ export default class ProgressLogger {
     const secondsMultiplier = Math.pow(10, secondsDecimals);
 
     const seconds =
-      Math.ceil(
+      Math.floor(
         convertTimeUnit(
           time -
             convertTimeUnit(hours, TimeUnit.Hours, TimeUnit.Milliseconds) -
@@ -132,7 +132,7 @@ export default class ProgressLogger {
         ) * secondsMultiplier
       ) / secondsMultiplier;
 
-    if (forceUnits || seconds > 0) {
+    if (forceUnits || seconds > 0 || (seconds === 0 && minutes === 0 && hours == 0)) {
       result.push(this.formatUnit(seconds, 's', forceUnits));
     }
 
