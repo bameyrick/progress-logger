@@ -55,6 +55,11 @@ export default class ProgressLogger {
    */
   private readonly subscriptions = new Subscription();
 
+  /**
+   * Start time of the logger
+   */
+  private readonly startTime = performance.now();
+
   constructor(
     private readonly totalItems: number,
     private readonly message: string,
@@ -74,7 +79,15 @@ export default class ProgressLogger {
    */
   public itemCompleted(duration: number): void {
     if (this.durations$) {
-      this.durations$.next([...this.durations$.getValue(), duration]);
+      const durations = this.durations$.getValue();
+
+      this.durations$.next([...durations, duration]);
+
+      if (durations.length === this.totalItems - 2) {
+        logUpdate.done();
+
+        console.log(chalk.cyan(`Finished ${this.message} in ${this.formatTime(performance.now() - this.startTime)}`));
+      }
     }
   }
 
