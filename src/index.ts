@@ -1,7 +1,7 @@
-import { convertTimeUnit, isNaNStrict, TimeUnit } from '@qntm-code/utils';
+import { formatTime, isNaNStrict } from '@qntm-code/utils';
 import * as chalk from 'chalk';
 import * as logUpdate from 'log-update';
-import { BehaviorSubject, map, Subscription, throttleTime } from 'rxjs';
+import { BehaviorSubject, Subscription, map, throttleTime } from 'rxjs';
 import * as sparkline from 'sparkline';
 
 export default class ProgressLogger {
@@ -33,7 +33,7 @@ export default class ProgressLogger {
       const remainingItems = this.totalItems - currentItem;
       const percentage = Math.round((currentItem / this.totalItems) * 10000) / 100;
       const remaining =
-        averageDuration > 0 ? chalk.cyan(`Est remaining: ${chalk.green(this.formatTime(averageDuration * remainingItems))}`) : '';
+        averageDuration > 0 ? chalk.cyan(`Est remaining: ${chalk.green(formatTime(averageDuration * remainingItems))}`) : '';
 
       return `${chalk.cyan(
         `${this.message}: ${chalk.blue(currentItem.toString().padStart(this.totalItems.toString().length, ' '))} of ${chalk.blue(
@@ -42,10 +42,9 @@ export default class ProgressLogger {
       )} | ${new Array(50)
         .fill('')
         .map((_, index) => (percentage / 2 >= index + 1 ? chalk.bgHex('#2AAA8A')(' ') : chalk.bgHex(`#333333`)(' ')))
-        .join('')} ${chalk.yellow(`${percentage.toString().padStart(6, ' ')}%`)} | ${remaining} | ${this.averageMessage}: ${this.formatTime(
+        .join('')} ${chalk.yellow(`${percentage.toString().padStart(6, ' ')}%`)} | ${remaining} | ${this.averageMessage}: ${formatTime(
         averageDuration,
-        false,
-        1
+        { forceAllUnits: false, secondsDecimalPlaces: 1 }
       )} ${this.makeSparkline(this.averageDurations)}`;
     })
   );
@@ -86,7 +85,7 @@ export default class ProgressLogger {
       if (durations.length === this.totalItems - 2) {
         logUpdate.done();
 
-        console.log(chalk.cyan(`Finished ${this.message} in ${this.formatTime(performance.now() - this.startTime)}`));
+        console.log(chalk.cyan(`Finished ${this.message} in ${formatTime(performance.now() - this.startTime)}`));
       }
     }
   }
@@ -97,59 +96,6 @@ export default class ProgressLogger {
   public destroy(): void {
     this.subscriptions.unsubscribe();
     this.durations$ = undefined;
-  }
-
-  /**
-   * Formats a given time in milliseconds to a human readable string
-   */
-  private formatTime(time: number, forceUnits = true, secondsDecimals = 0): string {
-    const result: Array<string> = [];
-
-    const hours = Math.floor(convertTimeUnit(time, TimeUnit.Milliseconds, TimeUnit.Hours));
-
-    if (forceUnits || hours > 0) {
-      result.push(this.formatUnit(hours, 'h', forceUnits));
-    }
-
-    const minutes = Math.floor(
-      convertTimeUnit(time - convertTimeUnit(hours, TimeUnit.Hours, TimeUnit.Milliseconds), TimeUnit.Milliseconds, TimeUnit.Minutes)
-    );
-
-    if (forceUnits || minutes > 0) {
-      result.push(this.formatUnit(minutes, 'm', forceUnits));
-    }
-
-    const secondsMultiplier = Math.pow(10, secondsDecimals);
-
-    const seconds =
-      Math.floor(
-        convertTimeUnit(
-          time -
-            convertTimeUnit(hours, TimeUnit.Hours, TimeUnit.Milliseconds) -
-            convertTimeUnit(minutes, TimeUnit.Minutes, TimeUnit.Milliseconds),
-          TimeUnit.Milliseconds,
-          TimeUnit.Seconds
-        ) * secondsMultiplier
-      ) / secondsMultiplier;
-
-    if (forceUnits || seconds > 0 || (seconds === 0 && minutes === 0 && hours == 0)) {
-      result.push(this.formatUnit(seconds, 's', forceUnits));
-    }
-
-    return result.join(' ');
-  }
-
-  /**
-   * Formats time units
-   */
-  private formatUnit(time: number, unit: string, forceUnits: boolean): string {
-    let result = `${time}${unit}`;
-
-    if (forceUnits) {
-      result = result.padStart(3, '0');
-    }
-
-    return result;
   }
 
   /**
