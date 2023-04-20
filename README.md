@@ -12,7 +12,7 @@ A simple progress logger for Node.js that outputs progress and estimated time re
   - [Usage](#usage)
     - [Constructor Arguments](#constructor-arguments)
     - [Methods](#methods)
-      - [increment](#increment)
+      - [itemCompleted](#itemcompleted)
       - [destroy](#destroy)
     - [Example](#example)
 
@@ -47,13 +47,15 @@ First you must create a new instance of the `ProgressLogger` class. The construc
 
 ### Methods
 
-#### increment
+#### itemCompleted
 
-Call `increment` on the `ProgressLogger` instance to increment the progress bar by one item. This method takes the following arguments:
+Call `itemCompleted` on the `ProgressLogger` instance to increment the progress bar by one item. This method takes the following arguments:
 
-| Argument | Type   | Description                                                                                      |
-| -------- | ------ | ------------------------------------------------------------------------------------------------ |
-| time     | number | The time taken to process the current item. This is used to calculate the average time per item. |
+| Argument | Type   | Optional | Description                                                                                      |
+| -------- | ------ | -------- | ------------------------------------------------------------------------------------------------ |
+| time     | number | true     | The time taken to process the current item. This is used to calculate the average time per item. |
+
+If you don't pass a `time` argument when calling `itemCompleted`, the average time will be calculated using the durations between each time `itemCompleted` is called. This is useful if you are processing items batches as multiple items may be being processed at the same time.
 
 #### destroy
 
@@ -85,7 +87,7 @@ async function main(): Promise<void> {
 
     await someAsyncProcess();
 
-    logger.increment(performance.now() - startTime);
+    logger.itemCompleted(performance.now() - startTime);
   }
 
   /**

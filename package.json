@@ -20,7 +20,7 @@
     "upgrade-interactive": "npm-check --update",
     "prepare": "husky install"
   },
-  "keywords": ["Progress logger", "Time remaining", "ETA", "Estimated time remaining"],
+  "keywords": ["Progress logger", "Time remaining", "ETA", "Estimated time remaining", "Batch Progress Logger", "Batch ETA"],
   "author": "Ben Meyrick <bameyrick@gmail.com>",
   "license": "ISC",
   "repository": {
