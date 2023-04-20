@@ -1,4 +1,4 @@
-import { formatTime, isNaNStrict } from '@qntm-code/utils';
+import { formatTime, isNaNStrict, isNullOrUndefined } from '@qntm-code/utils';
 import * as chalk from 'chalk';
 import * as logUpdate from 'log-update';
 import { BehaviorSubject, Subscription, map, throttleTime } from 'rxjs';
@@ -59,6 +59,11 @@ export default class ProgressLogger {
    */
   private readonly startTime = performance.now();
 
+  /**
+   * Last start time of an item
+   */
+  private lastStartTime?: number;
+
   constructor(
     private readonly totalItems: number,
     private readonly message: string,
@@ -76,11 +81,21 @@ export default class ProgressLogger {
    * Calling this method will log the completion of an item. This should be called after the item has been completed and the duration to
    * process that item (in milliseconds) should be passed as the argument.
    */
-  public itemCompleted(duration: number): void {
+  public itemCompleted(duration?: number): void {
     if (this.durations$) {
       const durations = this.durations$.getValue();
 
-      this.durations$.next([...durations, duration]);
+      if (!isNullOrUndefined(this.lastStartTime) || isNullOrUndefined(duration)) {
+        const now = performance.now();
+
+        if (!isNullOrUndefined(this.lastStartTime)) {
+          this.durations$.next([...durations, now - this.lastStartTime]);
+        }
+
+        this.lastStartTime = now;
+      } else {
+        this.durations$.next([...durations, duration]);
+      }
 
       if (durations.length === this.totalItems - 2) {
         logUpdate.done();
