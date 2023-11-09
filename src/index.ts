@@ -8,7 +8,7 @@ export interface ProgressLoggerOptions {
   /**
    * Total number of items to process
    */
-  totalItems: number;
+  total: number;
 
   /**
    * Message to display in the progress bar
@@ -54,15 +54,15 @@ export default class ProgressLogger {
       }
 
       const currentItem = durations.length;
-      const remainingItems = this.options!.totalItems - currentItem;
-      const percentage = Math.round((currentItem / this.options!.totalItems) * 10000) / 100;
+      const remainingItems = this.options!.total - currentItem;
+      const percentage = Math.round((currentItem / this.options!.total) * 10000) / 100;
       const remaining =
         averageDuration > 0 ? chalk.cyan(`Est remaining: ${chalk.green(formatTime(averageDuration * remainingItems))}`) : '';
 
       return `${chalk.cyan(
         `${this.options!.message}: ${chalk.blue(
-          currentItem.toString().padStart(this.options!.totalItems.toString().length, ' ')
-        )} of ${chalk.blue(this.options!.totalItems)}`
+          currentItem.toString().padStart(this.options!.total.toString().length, ' ')
+        )} of ${chalk.blue(this.options!.total)}`
       )} | ${new Array(50)
         .fill('')
         .map((_, index) => (percentage / 2 >= index + 1 ? chalk.bgHex('#2AAA8A')(' ') : chalk.bgHex(`#333333`)(' ')))
@@ -117,7 +117,7 @@ export default class ProgressLogger {
         this.durations$.next([...durations, duration]);
       }
 
-      if (durations.length === this.options!.totalItems - 2) {
+      if (durations.length === this.options!.total - 2) {
         logUpdate.done();
 
         console.log(chalk.cyan(`Finished ${this.options!.message} in ${formatTime(performance.now() - this.startTime)}`));
