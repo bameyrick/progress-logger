@@ -4,7 +4,31 @@ import * as logUpdate from 'log-update';
 import { BehaviorSubject, Subscription, map, throttleTime } from 'rxjs';
 import * as sparkline from 'sparkline';
 
+export interface ProgressLoggerOptions {
+  /**
+   * Total number of items to process
+   */
+  totalItems: number;
+
+  /**
+   * Message to display in the progress bar
+   */
+  message: string;
+
+  /**
+   * Message to display in the average time section
+   */
+  averageMessage: string;
+
+  /**
+   * Number of samples to use when calculating the average time
+   */
+  averageTimeSampleSize?: number;
+}
+
 export default class ProgressLogger {
+  private options?: ProgressLoggerOptions;
+
   /**
    * Durations of all items
    */
@@ -22,7 +46,7 @@ export default class ProgressLogger {
     throttleTime(100, undefined, { trailing: true }),
     map(durations => {
       const nonCachedDurations = this.filterOutliers(durations.filter(duration => duration !== 0));
-      const sample = nonCachedDurations.slice(-Math.min(this.averageTimeSampleSize, Math.max(nonCachedDurations.length - 1, 0)));
+      const sample = nonCachedDurations.slice(-Math.min(this.options!.averageTimeSampleSize!, Math.max(nonCachedDurations.length - 1, 0)));
       const averageDuration = sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
 
       if (!isNaNStrict(averageDuration)) {
@@ -30,22 +54,21 @@ export default class ProgressLogger {
       }
 
       const currentItem = durations.length;
-      const remainingItems = this.totalItems - currentItem;
-      const percentage = Math.round((currentItem / this.totalItems) * 10000) / 100;
+      const remainingItems = this.options!.totalItems - currentItem;
+      const percentage = Math.round((currentItem / this.options!.totalItems) * 10000) / 100;
       const remaining =
         averageDuration > 0 ? chalk.cyan(`Est remaining: ${chalk.green(formatTime(averageDuration * remainingItems))}`) : '';
 
       return `${chalk.cyan(
-        `${this.message}: ${chalk.blue(currentItem.toString().padStart(this.totalItems.toString().length, ' '))} of ${chalk.blue(
-          this.totalItems
-        )}`
+        `${this.options!.message}: ${chalk.blue(
+          currentItem.toString().padStart(this.options!.totalItems.toString().length, ' ')
+        )} of ${chalk.blue(this.options!.totalItems)}`
       )} | ${new Array(50)
         .fill('')
         .map((_, index) => (percentage / 2 >= index + 1 ? chalk.bgHex('#2AAA8A')(' ') : chalk.bgHex(`#333333`)(' ')))
-        .join('')} ${chalk.yellow(`${percentage.toString().padStart(6, ' ')}%`)} | ${remaining} | ${this.averageMessage}: ${formatTime(
-        averageDuration,
-        { forceAllUnits: false, secondsDecimalPlaces: 1 }
-      )} ${this.makeSparkline(this.averageDurations)}`;
+        .join('')} ${chalk.yellow(`${percentage.toString().padStart(6, ' ')}%`)} | ${remaining} | ${
+        this.options!.averageMessage
+      }: ${formatTime(averageDuration, { forceAllUnits: false, secondsDecimalPlaces: 1 })} ${this.makeSparkline(this.averageDurations)}`;
     })
   );
 
@@ -64,12 +87,9 @@ export default class ProgressLogger {
    */
   private lastStartTime?: number;
 
-  constructor(
-    private readonly totalItems: number,
-    private readonly message: string,
-    private readonly averageMessage: string,
-    private readonly averageTimeSampleSize: number = 100
-  ) {
+  constructor(config: ProgressLoggerOptions) {
+    this.options = { averageTimeSampleSize: 100, ...config };
+
     this.subscriptions.add(
       this.message$?.subscribe(message => {
         logUpdate(message);
@@ -97,10 +117,10 @@ export default class ProgressLogger {
         this.durations$.next([...durations, duration]);
       }
 
-      if (durations.length === this.totalItems - 2) {
+      if (durations.length === this.options!.totalItems - 2) {
         logUpdate.done();
 
-        console.log(chalk.cyan(`Finished ${this.message} in ${formatTime(performance.now() - this.startTime)}`));
+        console.log(chalk.cyan(`Finished ${this.options!.message} in ${formatTime(performance.now() - this.startTime)}`));
       }
     }
   }
