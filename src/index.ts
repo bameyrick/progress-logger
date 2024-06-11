@@ -31,7 +31,7 @@ export interface ProgressLoggerOptions {
   /**
    * Whether total is bytes
    */
-  bytes?: boolean;
+  bytes: boolean;
 
   /**
    * Number of samples to use when calculating the average time
@@ -42,6 +42,11 @@ export interface ProgressLoggerOptions {
    * Prevent overwriting the previous log of the bar
    */
   preventOverwrite?: boolean;
+
+  /**
+   * Custom logger function
+   */
+  logFunction?: (...args) => void;
 }
 
 export default class ProgressLogger {
@@ -158,7 +163,9 @@ export default class ProgressLogger {
 
       const result = items.join(' | ');
 
-      if (this.options.preventOverwrite) {
+      if (this.options.logFunction) {
+        this.options.logFunction(result);
+      } else if (this.options.preventOverwrite) {
         console.log(result);
       } else {
         logUpdate(items.join(' | '));
