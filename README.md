@@ -38,13 +38,14 @@ yarn add @qntm-code/progress-logger
 
 First you must create a new instance of the `ProgressLogger` class. The constructor takes the following arguments:
 
-| Argument              | Type               | Description                                                                             |
-| --------------------- | ------------------ | --------------------------------------------------------------------------------------- |
-| total                 | number             | The total number of items to process.                                                   |
-| message               | string             | The message to display before the progress bar.                                         |
-| bytes                 | _Optional_ boolean | Whether the total is bytes. Will format output accordingly                              |
-| averageTimeSampleSize | _Optional_ number  | The number of items to use when calculating the average time per item. Defaults to 100. |
-| preventOverwrite      | _Optional_ boolean | Prevent overwriting the previous log of the bar                                         |
+| Argument              | Type                        | Description                                                                             |
+| --------------------- | --------------------------- | --------------------------------------------------------------------------------------- |
+| total                 | number                      | The total number of items to process.                                                   |
+| message               | string                      | The message to display before the progress bar.                                         |
+| bytes                 | _Optional_ boolean          | Whether the total is bytes. Will format output accordingly                              |
+| averageTimeSampleSize | _Optional_ number           | The number of items to use when calculating the average time per item. Defaults to 100. |
+| preventOverwrite      | _Optional_ boolean          | Prevent overwriting the previous log of the bar                                         |
+| logFunction           | _optiona_ (...args) => void | Provide a custom logging function                                                       |
 
 ### Methods
 
