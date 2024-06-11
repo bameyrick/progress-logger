@@ -37,6 +37,11 @@ export interface ProgressLoggerOptions {
    * Number of samples to use when calculating the average time
    */
   averageTimeSampleSize?: number;
+
+  /**
+   * Prevent overwriting the previous log of the bar
+   */
+  preventOverwrite?: boolean;
 }
 
 export default class ProgressLogger {
@@ -151,7 +156,13 @@ export default class ProgressLogger {
         items.push(sparkline(averages) as string);
       }
 
-      logUpdate(items.join(' | '));
+      const result = items.join(' | ');
+
+      if (this.options.preventOverwrite) {
+        console.log(result);
+      } else {
+        logUpdate(items.join(' | '));
+      }
     });
   }
 
