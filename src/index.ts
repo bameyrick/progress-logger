@@ -5,6 +5,7 @@ import {
   BehaviorSubject,
   Subject,
   combineLatest,
+  debounceTime,
   distinctUntilChanged,
   filter,
   interval,
@@ -12,7 +13,6 @@ import {
   scan,
   shareReplay,
   takeUntil,
-  throttleTime,
   withLatestFrom,
 } from 'rxjs';
 import * as sparkline from 'sparkline';
@@ -100,7 +100,7 @@ export default class ProgressLogger {
   private readonly interval$ = interval(1000);
 
   private readonly data$ = combineLatest([this.averageDuration$, this.interval$]).pipe(
-    throttleTime(200),
+    debounceTime(200),
     map(([averageDuration]) => {
       const elapsed = performance.now() - this.startTime;
       const elapsedEta = elapsed * (this.options.total / this.completed - 1);
