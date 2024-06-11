@@ -1,4 +1,4 @@
-import { formatTime, isEqual, isNullOrUndefined } from '@qntm-code/utils';
+import { formatTime, isEqual, isNaNStrict, isNullOrUndefined } from '@qntm-code/utils';
 import * as chalk from 'chalk';
 import * as logUpdate from 'log-update';
 import {
@@ -6,6 +6,7 @@ import {
   Subject,
   combineLatest,
   distinctUntilChanged,
+  filter,
   interval,
   map,
   scan,
@@ -109,6 +110,7 @@ export default class ProgressLogger {
 
       return { elapsedEta, durationEta, remaining };
     }),
+    filter(({ elapsedEta, durationEta }) => !isNaNStrict(elapsedEta) && !isNaNStrict(durationEta)),
     distinctUntilChanged((a, b) => isEqual(a, b)),
     withLatestFrom(this.averageDurations$),
     map(([{ remaining, elapsedEta, durationEta }, averages]) => {
@@ -136,7 +138,7 @@ export default class ProgressLogger {
         current = chalk.blue(formatBytes(this.completed));
         total = chalk.blue(formatBytes(this.options.total));
       } else {
-        current = chalk.blue(this.completed.toString().padStart(this.options.total.toString().length, ''));
+        current = chalk.blue(this.completed.toString().padStart(this.options.total.toString().length, ' '));
         total = chalk.blue(this.options.total);
       }
 
