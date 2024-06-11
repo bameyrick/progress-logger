@@ -31,7 +31,7 @@ export interface ProgressLoggerOptions {
   /**
    * Whether total is bytes
    */
-  bytes: boolean;
+  bytes?: boolean;
 
   /**
    * Number of samples to use when calculating the average time
