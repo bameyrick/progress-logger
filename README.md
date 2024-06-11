@@ -12,8 +12,8 @@ A simple progress logger for Node.js that outputs progress and estimated time re
   - [Usage](#usage)
     - [Constructor Arguments](#constructor-arguments)
     - [Methods](#methods)
-      - [itemCompleted](#itemcompleted)
-      - [destroy](#destroy)
+      - [tick](#tick)
+      - [dispose](#dispose)
     - [Example](#example)
 
 ## Installation
@@ -38,28 +38,29 @@ yarn add @qntm-code/progress-logger
 
 First you must create a new instance of the `ProgressLogger` class. The constructor takes the following arguments:
 
-| Argument              | Type              | Description                                                                             |
-| --------------------- | ----------------- | --------------------------------------------------------------------------------------- |
-| total                 | number            | The total number of items to process.                                                   |
-| message               | string            | The message to display before the progress bar.                                         |
-| averageMessage        | string            | The message to display before the average time per item.                                |
-| averageTimeSampleSize | _Optional_ number | The number of items to use when calculating the average time per item. Defaults to 100. |
+| Argument              | Type               | Description                                                                             |
+| --------------------- | ------------------ | --------------------------------------------------------------------------------------- |
+| total                 | number             | The total number of items to process.                                                   |
+| message               | string             | The message to display before the progress bar.                                         |
+| bytes                 | _Optional_ boolean | Whether the total is bytes. Will format output accordingly                              |
+| averageTimeSampleSize | _Optional_ number  | The number of items to use when calculating the average time per item. Defaults to 100. |
 
 ### Methods
 
-#### itemCompleted
+#### tick
 
-Call `itemCompleted` on the `ProgressLogger` instance to increment the progress bar by one item. This method takes the following arguments:
+Call `tick` on the `ProgressLogger` to notify the progress bar that item(s) have been processed. This method takes the following arguments:
 
-| Argument | Type   | Optional | Description                                                                                      |
-| -------- | ------ | -------- | ------------------------------------------------------------------------------------------------ |
-| time     | number | true     | The time taken to process the current item. This is used to calculate the average time per item. |
+| Argument | Type   | Optional | Description                                                  |
+| -------- | ------ | -------- | ------------------------------------------------------------ |
+| amount   | number | true     | The number of items that were just processed (not the total) |
+| duration | number | true     | The time taken to process the current item(s).               |
 
-If you don't pass a `time` argument when calling `itemCompleted`, the average time will be calculated using the durations between each time `itemCompleted` is called. This is useful if you are processing items batches as multiple items may be being processed at the same time.
+If you don't pass a `time` argument when calling `tick`, the average time will be calculated using the durations between each time `tick` is called. This is useful if you are processing items batches as multiple items may be being processed at the same time.
 
-#### destroy
+#### dispose
 
-After you've finished processing your items, you must call `destroy` on the `ProgressLogger` instance to ensure the progress logger is destroyed and prevent a memory leak.
+If you want to stop using the ProgressLogger due to an error in your process, you must call `dispose` on the `ProgressLogger` instance to ensure the progress logger is disposed and prevent a memory leak. The ProgressLogger will automatically dispose itself if it reaches 100%.
 
 ### Example
 
@@ -79,7 +80,6 @@ async function main(): Promise<void> {
   const logger = new ProgressLogger({
     total,
     message: 'Processing',
-    averageMessage: 'Average process time',
   });
 
   for (let i = 0; i < total; i++) {
@@ -87,13 +87,7 @@ async function main(): Promise<void> {
 
     await someAsyncProcess();
 
-    logger.itemCompleted(performance.now() - startTime);
+    logger.tick();
   }
-
-  /**
-   * You must call destroy() after you've finshed processing your items to ensure the progress logger is
-   * destroyed and prevent a memory leak.
-   */
-  logger.destroy();
 }
 ```
