@@ -44,6 +44,7 @@ First you must create a new instance of the `ProgressLogger` class. The construc
 | message               | string             | The message to display before the progress bar.                                         |
 | bytes                 | _Optional_ boolean | Whether the total is bytes. Will format output accordingly                              |
 | averageTimeSampleSize | _Optional_ number  | The number of items to use when calculating the average time per item. Defaults to 100. |
+| preventOverwrite      | _Optional_ boolean | Prevent overwriting the previous log of the bar                                         |
 
 ### Methods
 
