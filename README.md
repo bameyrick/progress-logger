@@ -84,12 +84,14 @@ async function main(): Promise<void> {
     message: 'Processing',
   });
 
-  for (let i = 0; i < total; i++) {
+
+  await asyncForEach(itemsToProcess, async item => {
     const startTime = performance.now();
 
-    await someAsyncProcess();
+    await someAsyncProcess(item);
 
     logger.tick();
-  }
+  })
+==
 }
 ```
