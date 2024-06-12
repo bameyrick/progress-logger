@@ -12,7 +12,6 @@ import {
   scan,
   shareReplay,
   takeUntil,
-  throttleTime,
   withLatestFrom,
 } from 'rxjs';
 import * as sparkline from 'sparkline';
@@ -100,14 +99,11 @@ export default class ProgressLogger {
   private readonly interval$ = interval(1000);
 
   private readonly data$ = combineLatest([this.averageDuration$, this.interval$]).pipe(
-    throttleTime(200, undefined, {
-      trailing: true,
-    }),
     map(([averageDuration]) => {
       const elapsed = performance.now() - this.startTime;
       const elapsedEta = elapsed * (this.options.total / this.completed - 1);
 
-      const remaining = this.options.total - this.completed;
+      const remaining = Math.min(this.options.total - this.completed, this.options.total);
       const durationEta = averageDuration * remaining;
 
       return { elapsedEta, durationEta, remaining };
@@ -117,14 +113,12 @@ export default class ProgressLogger {
     withLatestFrom(this.averageDurations$),
     map(([{ remaining, elapsedEta, durationEta }, averages]) => {
       const percentage = (this.completed / this.options.total) * 100;
-      const average = averages[averages.length - 1];
 
       return {
         remaining,
         elapsedEta,
         durationEta,
         percentage,
-        average,
         averages,
       };
     })
@@ -133,7 +127,7 @@ export default class ProgressLogger {
   constructor(config: ProgressLoggerOptions) {
     this.options = { averageTimeSampleSize: 100, ...config };
 
-    this.data$.pipe(takeUntil(this.disposed$)).subscribe(({ elapsedEta, durationEta, percentage, average, averages }) => {
+    this.data$.pipe(takeUntil(this.disposed$)).subscribe(({ elapsedEta, durationEta, percentage, averages }) => {
       let current: string;
       let total: string;
       if (this.options.bytes) {
@@ -149,7 +143,7 @@ export default class ProgressLogger {
 
       const bar = new Array(50)
         .fill('')
-        .map((_, index) => (percentage / 2 >= index + 1 ? completedBar : incompleteBar))
+        .map((_, index) => (percentage / 2 >= index ? completedBar : incompleteBar))
         .join('');
 
       const items: string[] = [
@@ -160,7 +154,6 @@ export default class ProgressLogger {
       ];
 
       if (averages.some(average => average > 0)) {
-        items.push(formatTime(average, { forceAllUnits: false, secondsDecimalPlaces: 1 }));
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         items.push(sparkline(averages) as string);
       }
@@ -195,22 +188,18 @@ export default class ProgressLogger {
 
     this.durations$.next([...this.durations$.getValue(), durationPerItem]);
 
-    if (this.completed >= this.options.total) {
-      setTimeout(() => {
-        logUpdate.done();
-
-        this.dispose();
-
-        console.log(chalk.cyan(`Finished ${this.options.message} in ${formatTime(performance.now() - this.startTime)}`));
-      });
+    if (this.completed >= this.options.total || Math.round((this.completed / this.options.total) * 10000) / 100 >= 100) {
+      this.dispose();
+      console.log(chalk.cyan(`Finished ${this.options.message} in ${formatTime(performance.now() - this.startTime)}`));
     }
   }
 
   /**
-   * Destroys the logger. This should be called when you are done logging to prevent a memory leak.
+   * Disposes the logger. This should be called when you are done logging to prevent a memory leak.
    */
   public dispose(): void {
     this.disposed$.next();
+    logUpdate.done();
   }
 
   /**
