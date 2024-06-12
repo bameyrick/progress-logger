@@ -15,7 +15,7 @@ export function formatBytes(bytes: number): string {
     return `${forceDecimals(mb, 1)} MB`;
   }
 
-  const kb = +(mb / KB).toFixed(1);
+  const kb = +(bytes / KB).toFixed(1);
 
   if (kb > 1) {
     return `${forceDecimals(kb, 1)} KB`;
