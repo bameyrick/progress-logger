@@ -190,7 +190,7 @@ export default class ProgressLogger {
 
     if (this.completed >= this.options.total || Math.round((this.completed / this.options.total) * 10000) / 100 >= 100) {
       this.dispose();
-      console.log(chalk.cyan(`Finished ${this.options.message} in ${formatTime(performance.now() - this.startTime)}`));
+      this.log(chalk.cyan(`Finished ${this.options.message} in ${formatTime(performance.now() - this.startTime)}`));
     }
   }
 
@@ -214,5 +214,13 @@ export default class ProgressLogger {
     const minValue = q1 - iqr * 1.5;
 
     return values.filter(x => x >= minValue && x <= maxValue);
+  }
+
+  private log(message: string): void {
+    if (this.options.logFunction) {
+      this.options.logFunction(message);
+    } else {
+      console.log(message);
+    }
   }
 }
