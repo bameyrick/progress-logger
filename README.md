@@ -49,6 +49,8 @@ First you must create a new instance of the `ProgressLogger` class. The construc
 | logFunction           | _Optional_ (...args) => void | Provide a custom logging function                                                       |
 | throttleMs            | _Optional_ number            | Minimum time (ms) between progress renders. Defaults to 0 (disabled).                   |
 
+Note: if your processing loop finishes faster than `throttleMs`, you may only see the final "Finished …" log.
+
 ### Methods
 
 #### tick

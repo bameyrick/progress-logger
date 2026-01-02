@@ -2,7 +2,6 @@ import { formatTime, isEqual, isNaNStrict, isNullOrUndefined } from '@qntm-code/
 import chalk from 'chalk';
 import logUpdate from 'log-update';
 import {
-  asyncScheduler,
   BehaviorSubject,
   distinctUntilChanged,
   filter,
@@ -13,7 +12,6 @@ import {
   shareReplay,
   Subject,
   takeUntil,
-  throttleTime,
   withLatestFrom,
 } from 'rxjs';
 import * as sparkline from 'sparkline';
@@ -79,12 +77,19 @@ export default class ProgressLogger {
 
   private readonly durations$ = new BehaviorSubject<number[]>([]);
 
+  private readonly renderRequest$ = new Subject<void>();
+
+  private lastRenderAt = 0;
+
   private readonly averageDuration$ = this.durations$.pipe(
     map(durations => {
       const filteredDurations = this.filterOutliers(durations);
-      const sample = this.filterOutliers(durations).slice(
-        -Math.min(this.options.averageTimeSampleSize!, Math.max(filteredDurations.length - 1, 0))
-      );
+      if (filteredDurations.length === 0) {
+        return NaN;
+      }
+
+      const sampleSize = Math.min(this.options.averageTimeSampleSize!, filteredDurations.length);
+      const sample = filteredDurations.slice(-sampleSize);
 
       return sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
     }),
@@ -123,16 +128,11 @@ export default class ProgressLogger {
   constructor(config: ProgressLoggerOptions) {
     this.options = { averageTimeSampleSize: 100, throttleMs: 0, ...config };
 
-    // Triggers a render on each tick() (durations$ emits) and also once per second.
-    // This allows synchronous loops (that block the event loop) to still render progress.
-    const renderTrigger$ = merge(this.interval$, this.durations$.pipe(map(() => 0)));
+    // Triggers a render on each tick() and also once per second.
+    // Tick-driven rendering works in synchronous loops (e.g. for-loops).
+    const renderTrigger$ = merge(this.interval$, this.renderRequest$);
 
-    const throttledTrigger$ =
-      this.options.throttleMs && this.options.throttleMs > 0
-        ? renderTrigger$.pipe(throttleTime(this.options.throttleMs, asyncScheduler, { leading: true, trailing: true }))
-        : renderTrigger$;
-
-    throttledTrigger$
+    renderTrigger$
       .pipe(
         withLatestFrom(this.averageDuration$, this.averageDurations$),
         map(([, averageDuration, averages]) => {
@@ -180,6 +180,7 @@ export default class ProgressLogger {
     const durationPerItem = duration / amount;
 
     this.durations$.next([...this.durations$.getValue(), durationPerItem]);
+    this.requestRender();
 
     if (this.completed >= this.options.total || Math.round((this.completed / this.options.total) * 10000) / 100 >= 100) {
       this.forceRender();
@@ -249,8 +250,12 @@ export default class ProgressLogger {
     }
 
     const filteredDurations = this.filterOutliers(durations);
-    const sampleSize = Math.min(this.options.averageTimeSampleSize!, Math.max(filteredDurations.length - 1, 0));
-    const sample = this.filterOutliers(durations).slice(-sampleSize);
+    if (filteredDurations.length === 0) {
+      return NaN;
+    }
+
+    const sampleSize = Math.min(this.options.averageTimeSampleSize!, filteredDurations.length);
+    const sample = filteredDurations.slice(-sampleSize);
     if (sample.length === 0) {
       return NaN;
     }
@@ -259,6 +264,8 @@ export default class ProgressLogger {
   }
 
   private render({ elapsedEta, durationEta, percentage, averages }: ProgressLoggerData): void {
+    this.lastRenderAt = performance.now();
+
     let current: string;
     let total: string;
     if (this.options.bytes) {
@@ -297,6 +304,19 @@ export default class ProgressLogger {
       console.log(result);
     } else {
       logUpdate(result);
+    }
+  }
+
+  private requestRender(): void {
+    const throttleMs = this.options.throttleMs ?? 0;
+    if (throttleMs <= 0) {
+      this.renderRequest$.next();
+      return;
+    }
+
+    const now = performance.now();
+    if (this.lastRenderAt === 0 || now - this.lastRenderAt >= throttleMs) {
+      this.renderRequest$.next();
     }
   }
 }
