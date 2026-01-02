@@ -1,6 +1,6 @@
 import { formatTime, isEqual, isNaNStrict, isNullOrUndefined } from '@qntm-code/utils';
-import * as chalk from 'chalk';
-import * as logUpdate from 'log-update';
+import chalk from 'chalk';
+import logUpdate from 'log-update';
 import {
   asyncScheduler,
   BehaviorSubject,
