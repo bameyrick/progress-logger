@@ -14,7 +14,8 @@ A simple progress logger for Node.js that outputs progress and estimated time re
     - [Methods](#methods)
       - [tick](#tick)
       - [dispose](#dispose)
-    - [Example](#example)
+    - [Asynchronous Example](#asynchronous-example)
+    - [Synchronous example](#synchronous-example)
 
 ## Installation
 
@@ -38,14 +39,15 @@ yarn add @qntm-code/progress-logger
 
 First you must create a new instance of the `ProgressLogger` class. The constructor takes the following arguments:
 
-| Argument              | Type                        | Description                                                                             |
-| --------------------- | --------------------------- | --------------------------------------------------------------------------------------- |
-| total                 | number                      | The total number of items to process.                                                   |
-| message               | string                      | The message to display before the progress bar.                                         |
-| bytes                 | _Optional_ boolean          | Whether the total is bytes. Will format output accordingly                              |
-| averageTimeSampleSize | _Optional_ number           | The number of items to use when calculating the average time per item. Defaults to 100. |
-| preventOverwrite      | _Optional_ boolean          | Prevent overwriting the previous log of the bar                                         |
-| logFunction           | _optiona_ (...args) => void | Provide a custom logging function                                                       |
+| Argument              | Type                         | Description                                                                             |
+| --------------------- | ---------------------------- | --------------------------------------------------------------------------------------- |
+| total                 | number                       | The total number of items to process.                                                   |
+| message               | string                       | The message to display before the progress bar.                                         |
+| bytes                 | _Optional_ boolean           | Whether the total is bytes. Will format output accordingly                              |
+| averageTimeSampleSize | _Optional_ number            | The number of items to use when calculating the average time per item. Defaults to 100. |
+| preventOverwrite      | _Optional_ boolean           | Prevent overwriting the previous log of the bar                                         |
+| logFunction           | _Optional_ (...args) => void | Provide a custom logging function                                                       |
+| throttleMs            | _Optional_ number            | Minimum time (ms) between progress renders. Defaults to 0 (disabled).                   |
 
 ### Methods
 
@@ -58,13 +60,13 @@ Call `tick` on the `ProgressLogger` to notify the progress bar that item(s) have
 | amount   | number | true     | The number of items that were just processed (not the total) |
 | duration | number | true     | The time taken to process the current item(s).               |
 
-If you don't pass a `time` argument when calling `tick`, the average time will be calculated using the durations between each time `tick` is called. This is useful if you are processing items batches as multiple items may be being processed at the same time.
+If you don't pass a `duration` argument when calling `tick`, the average time will be calculated using the durations between each time `tick` is called. This is useful if you are processing items in batches as multiple items may be being processed at the same time.
 
 #### dispose
 
 If you want to stop using the ProgressLogger due to an error in your process, you must call `dispose` on the `ProgressLogger` instance to ensure the progress logger is disposed and prevent a memory leak. The ProgressLogger will automatically dispose itself if it reaches 100%.
 
-### Example
+### Asynchronous Example
 
 ```typescript
 import { ProgressLogger } from '@qntm-code/progress-logger';
@@ -82,16 +84,28 @@ async function main(): Promise<void> {
   const logger = new ProgressLogger({
     total,
     message: 'Processing',
+    throttleMs: 100,
   });
 
-
-  await asyncForEach(itemsToProcess, async item => {
-    const startTime = performance.now();
-
-    await someAsyncProcess(item);
-
+  for (const item of itemsToProcess) {
+    await someAsyncProcess();
     logger.tick();
-  })
-==
+  }
+}
+```
+
+### Synchronous example
+
+```typescript
+import { ProgressLogger } from '@qntm-code/progress-logger';
+
+function main(): void {
+  const total = 100_000;
+  const logger = new ProgressLogger({ total, message: 'Processing', throttleMs: 100 });
+
+  for (let i = 0; i < total; i++) {
+    // Do synchronous work
+    logger.tick();
+  }
 }
 ```
