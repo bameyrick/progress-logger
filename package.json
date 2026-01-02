@@ -47,15 +47,14 @@
     "*.md": ["prettier --write", "remark"]
   },
   "dependencies": {
-    "@qntm-code/utils": "^2.18.0",
+    "@qntm-code/utils": "^2.24.0",
     "chalk": "^4.1.2",
     "log-update": "^4.0.0",
-    "rxjs": "^7.8.1",
-    "sparkline": "^0.2.0",
-    "typescript": "^5.0.4"
+    "rxjs": "^7.8.2",
+    "sparkline": "^0.2.0"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
+    "@types/node": "^25.0.3",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
     "cpy-cli": "^4.2.0",
@@ -65,10 +64,11 @@
     "husky": "^8.0.0",
     "lint-staged": "^13.2.1",
     "npm-check": "^6.0.1",
-    "prettier": "^2.8.7",
+    "prettier": "^3.7.4",
     "remark-cli": "^11.0.0",
     "remark-lint": "^9.1.2",
     "remark-preset-lint-recommended": "^6.1.3",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
