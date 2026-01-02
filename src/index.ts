@@ -2,16 +2,18 @@ import { formatTime, isEqual, isNaNStrict, isNullOrUndefined } from '@qntm-code/
 import * as chalk from 'chalk';
 import * as logUpdate from 'log-update';
 import {
+  asyncScheduler,
   BehaviorSubject,
-  Subject,
-  combineLatest,
   distinctUntilChanged,
   filter,
   interval,
   map,
+  merge,
   scan,
   shareReplay,
+  Subject,
   takeUntil,
+  throttleTime,
   withLatestFrom,
 } from 'rxjs';
 import * as sparkline from 'sparkline';
@@ -47,6 +49,21 @@ export interface ProgressLoggerOptions {
    * Custom logger function
    */
   logFunction?: (...args) => void;
+
+  /**
+   * Minimum time (ms) between progress renders.
+   * Useful for tight loops to avoid spamming the console.
+   * Set to 0 or leave undefined to disable throttling.
+   */
+  throttleMs?: number;
+}
+
+interface ProgressLoggerData {
+  remaining: number;
+  elapsedEta: number;
+  durationEta: number;
+  percentage: number;
+  averages: number[];
 }
 
 export default class ProgressLogger {
@@ -80,17 +97,20 @@ export default class ProgressLogger {
       const batchSize = Math.max(Math.ceil(durations.length / 10), 1);
 
       return durations
-        .reduce((result, duration, index) => {
-          const batchIndex = Math.floor(index / batchSize);
+        .reduce(
+          (result, duration, index) => {
+            const batchIndex = Math.floor(index / batchSize);
 
-          if (!result[batchIndex]) {
-            result[batchIndex] = [];
-          }
+            if (!result[batchIndex]) {
+              result[batchIndex] = [];
+            }
 
-          result[batchIndex].push(duration);
+            result[batchIndex].push(duration);
 
-          return result;
-        }, [] as Array<Array<number>>)
+            return result;
+          },
+          [] as Array<Array<number>>
+        )
         .map(batch => Math.round(batch.reduce((sum, duration) => sum + duration, 0) / batch.length));
     }),
     shareReplay(1)
@@ -98,76 +118,49 @@ export default class ProgressLogger {
 
   private readonly interval$ = interval(1000);
 
-  private readonly data$ = combineLatest([this.averageDuration$, this.interval$]).pipe(
-    map(([averageDuration]) => {
-      const elapsed = performance.now() - this.startTime;
-      const elapsedEta = elapsed * (this.options.total / this.completed - 1);
-
-      const remaining = Math.min(this.options.total - this.completed, this.options.total);
-      const durationEta = averageDuration * remaining;
-
-      return { elapsedEta, durationEta, remaining };
-    }),
-    filter(({ elapsedEta, durationEta }) => !isNaNStrict(elapsedEta) && !isNaNStrict(durationEta)),
-    distinctUntilChanged((a, b) => isEqual(a, b)),
-    withLatestFrom(this.averageDurations$),
-    map(([{ remaining, elapsedEta, durationEta }, averages]) => {
-      const percentage = (this.completed / this.options.total) * 100;
-
-      return {
-        remaining,
-        elapsedEta,
-        durationEta,
-        percentage,
-        averages,
-      };
-    })
-  );
+  private lastData: ProgressLoggerData | undefined;
 
   constructor(config: ProgressLoggerOptions) {
-    this.options = { averageTimeSampleSize: 100, ...config };
+    this.options = { averageTimeSampleSize: 100, throttleMs: 0, ...config };
 
-    this.data$.pipe(takeUntil(this.disposed$)).subscribe(({ elapsedEta, durationEta, percentage, averages }) => {
-      let current: string;
-      let total: string;
-      if (this.options.bytes) {
-        current = chalk.blue(formatBytes(this.completed));
-        total = chalk.blue(formatBytes(this.options.total));
-      } else {
-        current = chalk.blue(this.completed.toString().padStart(this.options.total.toString().length, ' '));
-        total = chalk.blue(this.options.total);
-      }
+    // Triggers a render on each tick() (durations$ emits) and also once per second.
+    // This allows synchronous loops (that block the event loop) to still render progress.
+    const renderTrigger$ = merge(this.interval$, this.durations$.pipe(map(() => 0)));
 
-      const incompleteBar = chalk.bgHex(`#333333`)(' ');
-      const completedBar = chalk.bgHex('#2AAA8A')(' ');
+    const throttledTrigger$ =
+      this.options.throttleMs && this.options.throttleMs > 0
+        ? renderTrigger$.pipe(throttleTime(this.options.throttleMs, asyncScheduler, { leading: true, trailing: true }))
+        : renderTrigger$;
 
-      const bar = new Array(50)
-        .fill('')
-        .map((_, index) => (percentage / 2 >= index ? completedBar : incompleteBar))
-        .join('');
+    throttledTrigger$
+      .pipe(
+        withLatestFrom(this.averageDuration$, this.averageDurations$),
+        map(([, averageDuration, averages]) => {
+          const elapsed = performance.now() - this.startTime;
+          const elapsedEta = elapsed * (this.options.total / this.completed - 1);
 
-      const items: string[] = [
-        chalk.cyan(`${this.options.message}: ${current} of ${total}`),
-        bar,
-        chalk.yellow(`${percentage.toFixed(2).padStart(6, ' ')}%`),
-        chalk.cyan(`Est remaining: ${chalk.green(formatTime((durationEta + elapsedEta) / 2))}`),
-      ];
+          const remaining = Math.min(this.options.total - this.completed, this.options.total);
+          const durationEta = averageDuration * remaining;
 
-      if (averages.some(average => average > 0)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        items.push(sparkline(averages) as string);
-      }
+          const percentage = (this.completed / this.options.total) * 100;
 
-      const result = items.join(' | ');
-
-      if (this.options.logFunction) {
-        this.options.logFunction(result);
-      } else if (this.options.preventOverwrite) {
-        console.log(result);
-      } else {
-        logUpdate(items.join(' | '));
-      }
-    });
+          return {
+            remaining,
+            elapsedEta,
+            durationEta,
+            percentage,
+            averages,
+          } satisfies ProgressLoggerData;
+        }),
+        filter(({ elapsedEta, durationEta }) => !isNaNStrict(elapsedEta) && !isNaNStrict(durationEta)),
+        distinctUntilChanged((a, b) => isEqual(a, b)),
+        shareReplay(1),
+        takeUntil(this.disposed$)
+      )
+      .subscribe(data => {
+        this.lastData = data;
+        this.render(data);
+      });
   }
 
   /**
@@ -189,6 +182,7 @@ export default class ProgressLogger {
     this.durations$.next([...this.durations$.getValue(), durationPerItem]);
 
     if (this.completed >= this.options.total || Math.round((this.completed / this.options.total) * 10000) / 100 >= 100) {
+      this.forceRender();
       this.dispose();
       this.log(chalk.cyan(`Finished ${this.options.message} in ${formatTime(performance.now() - this.startTime)}`));
     }
@@ -221,6 +215,88 @@ export default class ProgressLogger {
       this.options.logFunction(message);
     } else {
       console.log(message);
+    }
+  }
+
+  private forceRender(): void {
+    if (this.lastData) {
+      this.render(this.lastData);
+      return;
+    }
+
+    const averageDuration = this.calculateAverageDuration();
+    if (isNaNStrict(averageDuration)) {
+      return;
+    }
+
+    const elapsed = performance.now() - this.startTime;
+    const elapsedEta = elapsed * (this.options.total / this.completed - 1);
+    const remaining = Math.min(this.options.total - this.completed, this.options.total);
+    const durationEta = averageDuration * remaining;
+    const percentage = (this.completed / this.options.total) * 100;
+
+    if (isNaNStrict(elapsedEta) || isNaNStrict(durationEta)) {
+      return;
+    }
+
+    this.render({ remaining, elapsedEta, durationEta, percentage, averages: [] });
+  }
+
+  private calculateAverageDuration(): number {
+    const durations = this.durations$.getValue();
+    if (durations.length === 0) {
+      return NaN;
+    }
+
+    const filteredDurations = this.filterOutliers(durations);
+    const sampleSize = Math.min(this.options.averageTimeSampleSize!, Math.max(filteredDurations.length - 1, 0));
+    const sample = this.filterOutliers(durations).slice(-sampleSize);
+    if (sample.length === 0) {
+      return NaN;
+    }
+
+    return sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
+  }
+
+  private render({ elapsedEta, durationEta, percentage, averages }: ProgressLoggerData): void {
+    let current: string;
+    let total: string;
+    if (this.options.bytes) {
+      current = chalk.blue(formatBytes(this.completed));
+      total = chalk.blue(formatBytes(this.options.total));
+    } else {
+      current = chalk.blue(this.completed.toString().padStart(this.options.total.toString().length, ' '));
+      total = chalk.blue(this.options.total);
+    }
+
+    const incompleteBar = chalk.bgHex(`#333333`)(' ');
+    const completedBar = chalk.bgHex('#2AAA8A')(' ');
+
+    const bar = new Array(50)
+      .fill('')
+      .map((_, index) => (percentage / 2 >= index ? completedBar : incompleteBar))
+      .join('');
+
+    const items: string[] = [
+      chalk.cyan(`${this.options.message}: ${current} of ${total}`),
+      bar,
+      chalk.yellow(`${percentage.toFixed(2).padStart(6, ' ')}%`),
+      chalk.cyan(`Est remaining: ${chalk.green(formatTime((durationEta + elapsedEta) / 2))}`),
+    ];
+
+    if (averages.some(average => average > 0)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      items.push(sparkline(averages) as string);
+    }
+
+    const result = items.join(' | ');
+
+    if (this.options.logFunction) {
+      this.options.logFunction(result);
+    } else if (this.options.preventOverwrite) {
+      console.log(result);
+    } else {
+      logUpdate(result);
     }
   }
 }
