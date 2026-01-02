@@ -4,13 +4,17 @@ on:
   release:
     types: [created]
 
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository 🛒
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Set node version 🤖
         run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
@@ -20,7 +24,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ steps.nvm.outputs.NODE_VERSION }}
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies 🌀
         run: npm install
