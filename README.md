@@ -71,7 +71,7 @@ If you want to stop using the ProgressLogger due to an error in your process, yo
 ### Asynchronous Example
 
 ```typescript
-import { ProgressLogger } from '@qntm-code/progress-logger';
+import ProgressLogger from '@qntm-code/progress-logger';
 
 async function someAsyncProcess(): Promise<void> {
   // Do something
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
 ### Synchronous example
 
 ```typescript
-import { ProgressLogger } from '@qntm-code/progress-logger';
+import ProgressLogger from '@qntm-code/progress-logger';
 
 function main(): void {
   const total = 100_000;

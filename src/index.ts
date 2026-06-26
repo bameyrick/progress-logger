@@ -14,8 +14,8 @@ import {
   takeUntil,
   withLatestFrom,
 } from 'rxjs';
-import * as sparkline from 'sparkline';
-import { formatBytes } from './format-bytes';
+import sparkline from 'sparkline';
+import { formatBytes } from './format-bytes.js';
 
 export interface ProgressLoggerOptions {
   /**
@@ -81,6 +81,8 @@ export default class ProgressLogger {
 
   private lastRenderAt = 0;
 
+  private isDisposed = false;
+
   private readonly averageDuration$ = this.durations$.pipe(
     map(durations => {
       const filteredDurations = this.filterOutliers(durations);
@@ -93,11 +95,14 @@ export default class ProgressLogger {
 
       return sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
     }),
-    shareReplay(1)
+    shareReplay({ bufferSize: 1, refCount: true })
   );
 
   private readonly averageDurations$ = this.averageDuration$.pipe(
-    scan((result, duration) => [...result, duration], []),
+    scan((result: number[], duration: number) => {
+      const next = [...result, duration];
+      return next.length > 1000 ? next.slice(-1000) : next;
+    }, [] as number[]),
     map(durations => {
       const batchSize = Math.max(Math.ceil(durations.length / 10), 1);
 
@@ -118,7 +123,7 @@ export default class ProgressLogger {
         )
         .map(batch => Math.round(batch.reduce((sum, duration) => sum + duration, 0) / batch.length));
     }),
-    shareReplay(1)
+    shareReplay({ bufferSize: 1, refCount: true })
   );
 
   private readonly interval$ = interval(1000);
@@ -139,10 +144,10 @@ export default class ProgressLogger {
           const elapsed = performance.now() - this.startTime;
           const elapsedEta = elapsed * (this.options.total / this.completed - 1);
 
-          const remaining = Math.min(this.options.total - this.completed, this.options.total);
+          const remaining = Math.max(0, this.options.total - this.completed);
           const durationEta = averageDuration * remaining;
 
-          const percentage = (this.completed / this.options.total) * 100;
+          const percentage = Math.min((this.completed / this.options.total) * 100, 100);
 
           return {
             remaining,
@@ -154,7 +159,6 @@ export default class ProgressLogger {
         }),
         filter(({ elapsedEta, durationEta }) => !isNaNStrict(elapsedEta) && !isNaNStrict(durationEta)),
         distinctUntilChanged((a, b) => isEqual(a, b)),
-        shareReplay(1),
         takeUntil(this.disposed$)
       )
       .subscribe(data => {
@@ -179,7 +183,9 @@ export default class ProgressLogger {
 
     const durationPerItem = duration / amount;
 
-    this.durations$.next([...this.durations$.getValue(), durationPerItem]);
+    const currentDurations = this.durations$.getValue();
+    const nextDurations = [...currentDurations, durationPerItem].slice(-this.options.averageTimeSampleSize!);
+    this.durations$.next(nextDurations);
     this.requestRender();
 
     if (this.completed >= this.options.total || Math.round((this.completed / this.options.total) * 10000) / 100 >= 100) {
@@ -193,6 +199,10 @@ export default class ProgressLogger {
    * Disposes the logger. This should be called when you are done logging to prevent a memory leak.
    */
   public dispose(): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.isDisposed = true;
     this.disposed$.next();
     logUpdate.done();
   }
@@ -225,42 +235,25 @@ export default class ProgressLogger {
       return;
     }
 
-    const averageDuration = this.calculateAverageDuration();
-    if (isNaNStrict(averageDuration)) {
+    const filtered = this.filterOutliers(this.durations$.getValue());
+    if (filtered.length === 0) {
       return;
     }
 
+    const sampleSize = Math.min(this.options.averageTimeSampleSize!, filtered.length);
+    const averageDuration = filtered.slice(-sampleSize).reduce((sum, d) => sum + d, 0) / sampleSize;
+
     const elapsed = performance.now() - this.startTime;
     const elapsedEta = elapsed * (this.options.total / this.completed - 1);
-    const remaining = Math.min(this.options.total - this.completed, this.options.total);
+    const remaining = Math.max(0, this.options.total - this.completed);
     const durationEta = averageDuration * remaining;
-    const percentage = (this.completed / this.options.total) * 100;
+    const percentage = Math.min((this.completed / this.options.total) * 100, 100);
 
     if (isNaNStrict(elapsedEta) || isNaNStrict(durationEta)) {
       return;
     }
 
     this.render({ remaining, elapsedEta, durationEta, percentage, averages: [] });
-  }
-
-  private calculateAverageDuration(): number {
-    const durations = this.durations$.getValue();
-    if (durations.length === 0) {
-      return NaN;
-    }
-
-    const filteredDurations = this.filterOutliers(durations);
-    if (filteredDurations.length === 0) {
-      return NaN;
-    }
-
-    const sampleSize = Math.min(this.options.averageTimeSampleSize!, filteredDurations.length);
-    const sample = filteredDurations.slice(-sampleSize);
-    if (sample.length === 0) {
-      return NaN;
-    }
-
-    return sample.reduce((sum, duration) => sum + duration, 0) / sample.length;
   }
 
   private render({ elapsedEta, durationEta, percentage, averages }: ProgressLoggerData): void {
@@ -281,7 +274,7 @@ export default class ProgressLogger {
 
     const bar = new Array(50)
       .fill('')
-      .map((_, index) => (percentage / 2 >= index ? completedBar : incompleteBar))
+      .map((_, index) => (percentage / 2 > index ? completedBar : incompleteBar))
       .join('');
 
     const items: string[] = [
