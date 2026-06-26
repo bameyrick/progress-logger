@@ -169,7 +169,7 @@ describe('ProgressLogger', () => {
       const doneCallsAfterCompletion = mockLogUpdateDone.mock.calls.length;
 
       logger.dispose(); // should be a no-op
-      expect(mockLogUpdateDone.mock.calls.length).toBe(doneCallsAfterCompletion);
+      expect(mockLogUpdateDone.mock.calls).toHaveLength(doneCallsAfterCompletion);
     });
 
     it('percentage is capped at 100% when completed exceeds total', () => {
@@ -188,7 +188,7 @@ describe('ProgressLogger', () => {
       logger.dispose();
       logger.dispose();
       logger.dispose();
-      expect(mockLogUpdateDone.mock.calls.length).toBe(1);
+      expect(mockLogUpdateDone.mock.calls).toHaveLength(1);
     });
   });
 
@@ -204,7 +204,7 @@ describe('ProgressLogger', () => {
 
       now = 1100; // only 100 ms later — inside the 200 ms window
       logger.tick(1, 100);
-      expect(output.length).toBe(afterFirst);
+      expect(output).toHaveLength(afterFirst);
 
       now = 1201; // past the 200 ms window
       logger.tick(1, 100);
