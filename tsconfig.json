@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "moduleResolution": "bundler",
+    "rootDir": "src",
     "sourceMap": false,
     "experimentalDecorators": true,
     "noImplicitAny": false,
